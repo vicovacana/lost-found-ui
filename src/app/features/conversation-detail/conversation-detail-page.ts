@@ -8,6 +8,7 @@ import { Message } from '../../core/models/message.model';
 import { Claim } from '../../core/models/claim.model';
 import { Conversation } from '../../core/models/conversation.model';
 import { AuthService } from '../../core/services/auth.service';
+import { ChatHubService } from '../../core/services/chat-hub.service';
 import { MessageService } from '../../core/services/message.service';
 import { ClaimService } from '../../core/services/claim.service';
 import { ConversationService } from '../../core/services/conversation.service';
@@ -15,7 +16,7 @@ import { ListingService } from '../../core/services/listing.service';
 import { ToastService } from '../../core/services/toast.service';
 import { StatusTag } from '../../shared/components/status-tag/status-tag';
 
-const POLL_INTERVAL_MS = 5_000;
+const CONVERSATION_REFRESH_INTERVAL_MS = 15_000;
 
 @Component({
   selector: 'app-conversation-detail-page',
@@ -46,6 +47,7 @@ export class ConversationDetailPage implements OnInit, OnDestroy {
 
   private conversationId!: number;
   private pollSub?: Subscription;
+  private messageSub?: Subscription;
 
   constructor(
     protected readonly auth: AuthService,
@@ -55,6 +57,7 @@ export class ConversationDetailPage implements OnInit, OnDestroy {
     private readonly claimService: ClaimService,
     private readonly listingService: ListingService,
     private readonly toast: ToastService,
+    private readonly chatHub: ChatHubService,
   ) {}
 
   ngOnInit(): void {
@@ -70,17 +73,36 @@ export class ConversationDetailPage implements OnInit, OnDestroy {
         } else {
           this.checkOwnerAndLoadClaims(r.listingId);
         }
-        this.pollSub = interval(POLL_INTERVAL_MS).subscribe(() => {
-          this.loadMessages();
-          this.refreshConversation();
-        });
+
+        this.chatHub.joinConversation(this.conversationId);
+        this.markConversationRead();
+        this.messageSub = this.chatHub.messageReceived$.subscribe((message) => this.onMessageReceived(message));
+
+        this.pollSub = interval(CONVERSATION_REFRESH_INTERVAL_MS).subscribe(() => this.refreshConversation());
       },
       error: () => this.loading.set(false),
     });
   }
 
   ngOnDestroy(): void {
+    this.chatHub.leaveConversation(this.conversationId);
     this.pollSub?.unsubscribe();
+    this.messageSub?.unsubscribe();
+  }
+
+  private onMessageReceived(message: Message): void {
+    if (message.conversationId !== this.conversationId) return;
+    if (this.messages().some((m) => m.messageId === message.messageId)) return;
+    this.messages.update((list) => [...list, message]);
+    this.scrollToBottom();
+    if (message.userId !== this.currentUserId) {
+      this.markConversationRead();
+    }
+  }
+
+  private markConversationRead(): void {
+    this.messageService.markAsRead(this.conversationId).subscribe();
+    this.chatHub.markAsRead(this.conversationId);
   }
 
   get currentUserId(): number | null {
@@ -95,9 +117,11 @@ export class ConversationDetailPage implements OnInit, OnDestroy {
       .create(this.conversationId, { content })
       .pipe(finalize(() => this.sending.set(false)))
       .subscribe((message) => {
-        this.messages.update((list) => [...list, message]);
         this.newMessage = '';
-        this.scrollToBottom();
+        if (!this.messages().some((m) => m.messageId === message.messageId)) {
+          this.messages.update((list) => [...list, message]);
+          this.scrollToBottom();
+        }
       });
   }
 

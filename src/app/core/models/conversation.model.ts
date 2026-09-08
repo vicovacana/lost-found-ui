@@ -7,4 +7,5 @@ export interface Conversation {
   listingId: number;
   listingTitle: string;
   locationDescription: string | null;
+  hasUnread: boolean;
 }

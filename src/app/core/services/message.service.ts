@@ -16,4 +16,8 @@ export class MessageService {
   create(conversationId: number, dto: MessageCreate) {
     return this.http.post<Message>(`${this.api}/razgovori/${conversationId}/poruke`, dto);
   }
+
+  markAsRead(conversationId: number) {
+    return this.http.patch<void>(`${this.api}/razgovori/${conversationId}/procitano`, {});
+  }
 }

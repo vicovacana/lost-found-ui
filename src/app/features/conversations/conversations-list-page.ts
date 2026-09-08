@@ -3,6 +3,7 @@ import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ConversationStatus } from '../../core/models/enums';
 import { Conversation } from '../../core/models/conversation.model';
+import { ChatHubService } from '../../core/services/chat-hub.service';
 import { ConversationService } from '../../core/services/conversation.service';
 import { StatusTag } from '../../shared/components/status-tag/status-tag';
 
@@ -21,8 +22,15 @@ export class ConversationsListPage {
   protected loading = signal(true);
   protected tab = signal<Tab>(ConversationStatus.Open);
 
+  protected withUnread = computed(() =>
+    this.conversations().map((r) => ({
+      ...r,
+      hasUnread: r.hasUnread || this.chatHub.unreadConversationIds().has(r.conversationId),
+    })),
+  );
+
   protected filtered = computed(() =>
-    this.conversations().filter((r) => r.status === this.tab()),
+    this.withUnread().filter((r) => r.status === this.tab()),
   );
 
   protected openCount = computed(
@@ -32,7 +40,10 @@ export class ConversationsListPage {
     () => this.conversations().filter((r) => r.status === ConversationStatus.Closed).length,
   );
 
-  constructor(private readonly conversationService: ConversationService) {
+  constructor(
+    private readonly conversationService: ConversationService,
+    protected readonly chatHub: ChatHubService,
+  ) {
     this.conversationService.getMine().subscribe({
       next: (data) => {
         this.conversations.set(data);

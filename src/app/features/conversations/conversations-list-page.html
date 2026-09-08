@@ -19,7 +19,10 @@
   } @else {
     <div class="thread-list">
       @for (r of filtered(); track r.conversationId) {
-        <a class="thread-item card" [routerLink]="['/razgovori', r.conversationId]">
+        <a class="thread-item card" [class.unread]="r.hasUnread" [routerLink]="['/razgovori', r.conversationId]">
+          @if (r.hasUnread) {
+            <span class="unread-dot"></span>
+          }
           <span class="thread-title">{{ r.listingTitle }}</span>
           <span class="thread-meta text-muted">{{ r.createdAt | date: 'd. MMM yyyy' }}</span>
           <app-status-tag [conversation]="r.status" />

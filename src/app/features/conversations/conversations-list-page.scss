@@ -5,12 +5,25 @@
 }
 
 .thread-item {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: 4px 12px;
+  padding-left: calc(var(--space-3) + 14px);
   text-decoration: none;
   color: inherit;
+}
+
+.unread-dot {
+  position: absolute;
+  left: var(--space-3);
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-danger);
+  transform: translateY(-50%);
 }
 
 .thread-title {
@@ -18,6 +31,10 @@
   font-weight: 500;
   font-size: 14px;
   grid-column: 1;
+}
+
+.thread-item.unread .thread-title {
+  font-weight: 700;
 }
 
 .thread-meta {
